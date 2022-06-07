@@ -21,11 +21,11 @@ enum GAME_STATE {
     RESULTS_STATE
 } game_state;
 
-int init_width = 1200;
-int init_height = 800;
+int init_width = 800;
+int init_height = 600;
 
-int init_play_area_width = 900;
-int init_play_area_height = 600;
+int init_play_area_width = 750;
+int init_play_area_height = 500;
 
 double scale_x = 1.0;
 double scale_y = 1.0;
@@ -94,13 +94,13 @@ void draw_play_again_button(void) {
     glLineWidth(3.0f);
 
     glBegin(GL_LINE_LOOP);
-    glVertex2d(-play_again_x, -play_again_y);
-    glVertex2d(play_again_x, -play_again_y);
-    glVertex2d(play_again_x, play_again_y);
-    glVertex2d(-play_again_x, play_again_y);
+    glVertex2d(-play_again_x, 0.2 - play_again_y);
+    glVertex2d(play_again_x, 0.2 - play_again_y);
+    glVertex2d(play_again_x, 0.2 + play_again_y);
+    glVertex2d(-play_again_x, 0.2 + play_again_y);
     glEnd();
 
-    draw_text(-0.25, 0.0, GLUT_BITMAP_HELVETICA_18, "Jogar novamente");
+    draw_text(-0.25, 0.23, GLUT_BITMAP_HELVETICA_18, "Jogar novamente");
 }
 
 void draw_play_area(void) {
@@ -153,10 +153,10 @@ void display(GLvoid) {
         draw_text(-0.395, 0.7, GLUT_BITMAP_HELVETICA_18, "Aperte ESC para sair do jogo.");
 
         draw_text(-play_area_x + 0.1, 0.4, GLUT_BITMAP_HELVETICA_18, "Mudar dificuldade:");
-        draw_text(-play_area_x + 0.1, 0.5, GLUT_BITMAP_HELVETICA_18, "Facil (tecla 'F')");
-        draw_text(-play_area_x + 0.1, 0.6, GLUT_BITMAP_HELVETICA_18, "Normal (tecla 'N')");
-        draw_text(-play_area_x + 0.1, 0.7, GLUT_BITMAP_HELVETICA_18, "Dificil (tecla 'D')");
-        draw_text(-play_area_x + 0.1, 0.8, GLUT_BITMAP_HELVETICA_18, "Viciado (tecla 'V')");
+        draw_text(-play_area_x + 0.1, 0.5, GLUT_BITMAP_HELVETICA_18, "Facil (tecla [F])");
+        draw_text(-play_area_x + 0.1, 0.6, GLUT_BITMAP_HELVETICA_18, "Normal (tecla [N])");
+        draw_text(-play_area_x + 0.1, 0.7, GLUT_BITMAP_HELVETICA_18, "Dificil (tecla [D])");
+        draw_text(-play_area_x + 0.1, 0.8, GLUT_BITMAP_HELVETICA_18, "Viciado (tecla [V])");
 
         draw_text(-play_area_x + 0.1, 0.9, GLUT_BITMAP_HELVETICA_18, "Use a roda do mouse para ajustes finos.");
     } else if (game_state == PLAYING_STATE) {
@@ -174,8 +174,8 @@ void display(GLvoid) {
         char* average_ms_buffer = (char*)malloc(256 * sizeof(char));
         snprintf(average_ms_buffer, 256, "%d ms", average_ms);
 
-        draw_text(-0.35, -0.25, GLUT_BITMAP_HELVETICA_18, "Tempo de reacao medio por alvo");
-        draw_text(-0.15, -0.15, GLUT_BITMAP_HELVETICA_18, average_ms_buffer);
+        draw_text(-0.4, -0.25, GLUT_BITMAP_HELVETICA_18, "Tempo de reacao medio por alvo");
+        draw_text(-0.1, -0.05, GLUT_BITMAP_TIMES_ROMAN_24, average_ms_buffer);
 
         draw_play_again_button();
     }
@@ -202,7 +202,14 @@ void mouse_passive_motion(int x, int y)
     double mouse_x = get_mouse_x(x);
     double mouse_y = get_mouse_y(y);
 
-    if (is_inside_target(mouse_x, mouse_y)) {
+    if (game_state == RESULTS_STATE
+        && mouse_x <= play_again_x
+        && mouse_x >= -play_again_x
+        && mouse_y <= 0.2 + play_again_y
+        && mouse_y >= 0.2 - play_again_y) {
+        glutSetCursor(GLUT_CURSOR_INFO);
+    }
+    else if (display_target && is_inside_target(mouse_x, mouse_y)) {
         glutSetCursor(GLUT_CURSOR_INFO);
     } else {
         glutSetCursor(GLUT_CURSOR_INHERIT);
@@ -316,11 +323,16 @@ void mouse(int button, int state, int x, int y)
         else decrease_target_r();
     }
 
-    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN && is_inside_target(mouse_x, mouse_y)) {
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        bool inside_target = is_inside_target(mouse_x, mouse_y);
         if (game_state == START_STATE) {
+            if (!inside_target) return;
+
             initial_time = clock();
             game_state = PLAYING_STATE;
         } else if (game_state == PLAYING_STATE) {
+            if (!inside_target) return;
+
             clock_t time = clock();
             target_times[TARGET_COUNT - remaining_targets] = time - initial_time;
             initial_time = time;
@@ -339,9 +351,11 @@ void mouse(int button, int state, int x, int y)
         } else if (game_state == RESULTS_STATE) {
             if (mouse_x <= play_again_x
                 && mouse_x >= -play_again_x
-                && mouse_x <= play_again_y
-                && mouse_x >= -play_again_y) {
+                && mouse_y <= 0.2 + play_again_y
+                && mouse_y >= 0.2 - play_again_y) {
                 game_state = START_STATE;
+                target_x = 0.0;
+                target_y = 0.0;
                 display_target = true;
                 remaining_targets = TARGET_COUNT;
                 glutPostRedisplay();
