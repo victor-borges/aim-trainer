@@ -21,7 +21,7 @@ enum GAME_STATE {
     RESULTS_STATE
 } game_state;
 
-int init_width = 800;
+int init_width = 900;
 int init_height = 600;
 
 int init_play_area_width = 750;
@@ -42,7 +42,7 @@ double step_target_r = 0.01;
 double min_target_r = 0.08;
 double max_target_r = 0.25;
 
-double play_again_x = 0.3;
+double play_again_x = 0.35;
 double play_again_y = 0.1;
 
 int remaining_targets = TARGET_COUNT;
@@ -73,6 +73,23 @@ void draw_text(double x, double y, void* font, const char* string)
     glutBitmapString(font, string);
 }
 
+void draw_filled_circle(double cx, double cy, double r, int num_segments)
+{
+    glBegin(GL_TRIANGLE_FAN);
+
+    for(int i = 0; i < num_segments; i++)
+    {
+        double theta = 2.0f * 3.1415926f * (double)i / (double)num_segments;
+
+        double x = r * cos(theta);
+        double y = r * sin(theta);
+
+        glVertex2d(x + cx, y + cy);
+    }
+
+    glEnd();
+}
+
 void draw_circle(double cx, double cy, double r, int num_segments)
 {
     glBegin(GL_LINE_LOOP);
@@ -100,7 +117,7 @@ void draw_play_again_button(void) {
     glVertex2d(-play_again_x, 0.2 + play_again_y);
     glEnd();
 
-    draw_text(-0.25, 0.23, GLUT_BITMAP_HELVETICA_18, "Jogar novamente");
+    draw_text(-0.26, 0.23, GLUT_BITMAP_HELVETICA_18, "Jogar novamente");
 }
 
 void draw_play_area(void) {
@@ -116,6 +133,10 @@ void draw_play_area(void) {
 
 void draw_target(void) {
     glLineWidth(3.0f);
+
+    glColor3d(149.0/255.0, 195.0/255.0, 232.0/255.0);
+
+    draw_filled_circle(target_x, target_y, target_r, 50);
 
     glColor3d(1.0, 1.0, 1.0);
 
@@ -163,7 +184,7 @@ void display(GLvoid) {
         char* remaining_message_buffer = (char*)malloc(256 * sizeof(char));
         snprintf(remaining_message_buffer, 256, "Faltam %d alvos", remaining_targets);
 
-        draw_text(-0.1, - play_area_y - 0.1, GLUT_BITMAP_HELVETICA_18, remaining_message_buffer);
+        draw_text(-0.1, - play_area_y + 0.1, GLUT_BITMAP_HELVETICA_18, remaining_message_buffer);
     } else if (game_state == RESULTS_STATE) {
         int total_time_ms = 0;
         for (int i = 0; i < TARGET_COUNT; ++i)
@@ -174,7 +195,7 @@ void display(GLvoid) {
         char* average_ms_buffer = (char*)malloc(256 * sizeof(char));
         snprintf(average_ms_buffer, 256, "%d ms", average_ms);
 
-        draw_text(-0.4, -0.25, GLUT_BITMAP_HELVETICA_18, "Tempo de reacao medio por alvo");
+        draw_text(-0.5, -0.25, GLUT_BITMAP_HELVETICA_18, "Tempo de reacao medio por alvo");
         draw_text(-0.1, -0.05, GLUT_BITMAP_TIMES_ROMAN_24, average_ms_buffer);
 
         draw_play_again_button();
@@ -202,14 +223,12 @@ void mouse_passive_motion(int x, int y)
     double mouse_x = get_mouse_x(x);
     double mouse_y = get_mouse_y(y);
 
-    if (game_state == RESULTS_STATE
+    if ((game_state == RESULTS_STATE
         && mouse_x <= play_again_x
         && mouse_x >= -play_again_x
         && mouse_y <= 0.2 + play_again_y
-        && mouse_y >= 0.2 - play_again_y) {
-        glutSetCursor(GLUT_CURSOR_INFO);
-    }
-    else if (display_target && is_inside_target(mouse_x, mouse_y)) {
+        && mouse_y >= 0.2 - play_again_y)
+        || (display_target && is_inside_target(mouse_x, mouse_y))){
         glutSetCursor(GLUT_CURSOR_INFO);
     } else {
         glutSetCursor(GLUT_CURSOR_INHERIT);
@@ -218,11 +237,11 @@ void mouse_passive_motion(int x, int y)
 
 void reshape(int new_width, int new_height)
 {
-    if (new_height <= init_height)
-        new_height = init_height;
+    if (new_height <= init_play_area_height)
+        new_height = init_play_area_height;
 
-    if (new_width <= init_width)
-        new_width = init_width;
+    if (new_width <= init_play_area_width)
+        new_width = init_play_area_width;
 
     glutReshapeWindow(new_width, new_height);
 
@@ -249,26 +268,32 @@ void keyboard(unsigned char key, int x, int y)
             glutExit();
             return;
         case '-':
-            decrease_target_r();
+            if (game_state == START_STATE)
+                decrease_target_r();
             break;
         case '+':
-            increase_target_r();
+            if (game_state == START_STATE)
+                increase_target_r();
             break;
         case 'F':
         case 'f':
-            target_r = 0.25;
+            if (game_state == START_STATE)
+                target_r = 0.25;
             break;
         case 'N':
         case 'n':
-            target_r = 0.15;
+            if (game_state == START_STATE)
+                target_r = 0.15;
             break;
         case 'D':
         case 'd':
-            target_r = 0.12;
+            if (game_state == START_STATE)
+                target_r = 0.12;
             break;
         case 'V':
         case 'v':
-            target_r = 0.08;
+            if (game_state == START_STATE)
+                target_r = 0.08;
             break;
         default:
             break;
@@ -315,7 +340,7 @@ void mouse(int button, int state, int x, int y)
     double mouse_x = get_mouse_x(x);
     double mouse_y = get_mouse_y(y);
 
-    if ((button == 3) || (button == 4))
+    if (game_state == START_STATE && ((button == 3) || (button == 4)))
     {
         if (state == GLUT_UP) return;
 
@@ -330,6 +355,7 @@ void mouse(int button, int state, int x, int y)
 
             initial_time = clock();
             game_state = PLAYING_STATE;
+            glutSetCursor(GLUT_CURSOR_INHERIT);
         } else if (game_state == PLAYING_STATE) {
             if (!inside_target) return;
 
@@ -337,6 +363,7 @@ void mouse(int button, int state, int x, int y)
             target_times[TARGET_COUNT - remaining_targets] = time - initial_time;
             initial_time = time;
             remaining_targets--;
+            glutSetCursor(GLUT_CURSOR_INHERIT);
 
             if (remaining_targets == 0) {
                 game_state = RESULTS_STATE;
@@ -358,6 +385,7 @@ void mouse(int button, int state, int x, int y)
                 target_y = 0.0;
                 display_target = true;
                 remaining_targets = TARGET_COUNT;
+                glutSetCursor(GLUT_CURSOR_INHERIT);
                 glutPostRedisplay();
                 return;
             }
