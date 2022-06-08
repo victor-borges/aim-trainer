@@ -24,8 +24,10 @@ enum GAME_STATE {
 int init_width = 900;
 int init_height = 600;
 
-int init_play_area_width = 750;
-int init_play_area_height = 500;
+int play_area_width = 600;
+const int min_play_area_width = 600;
+int play_area_height = 400;
+const int min_play_area_height = 400;
 
 double scale_x = 1.0;
 double scale_y = 1.0;
@@ -42,8 +44,9 @@ double step_target_r = 0.01;
 double min_target_r = 0.08;
 double max_target_r = 0.25;
 
-double play_again_x = 0.35;
-double play_again_y = 0.1;
+double play_again_x = 0.0;
+double play_again_y = 0.3;
+double play_again_r = 0.15;
 
 int remaining_targets = TARGET_COUNT;
 clock_t target_times[TARGET_COUNT];
@@ -51,6 +54,13 @@ clock_t initial_time;
 
 bool is_inside_target(double x, double y) {
     return pow(x - target_x, 2) + pow(y - target_y, 2) <= pow(target_r, 2);
+}
+
+bool is_inside_play_again_button(double x, double y) {
+    return x <= play_again_x + play_again_r
+    && x >= play_again_x - play_again_r
+    && y <= play_again_y + play_again_r
+    && y >= play_again_y - play_again_r;
 }
 
 double get_mouse_x(int x) {
@@ -73,30 +83,14 @@ void draw_text(double x, double y, void* font, const char* string)
     glutBitmapString(font, string);
 }
 
-void draw_filled_circle(double cx, double cy, double r, int num_segments)
+void draw_circle(double cx, double cy, double r, bool filled)
 {
-    glBegin(GL_TRIANGLE_FAN);
+    if (filled) glBegin(GL_TRIANGLE_FAN);
+    else glBegin(GL_LINE_LOOP);
 
-    for(int i = 0; i < num_segments; i++)
+    for(int i = 0; i < 360; i++)
     {
-        double theta = 2.0f * 3.1415926f * (double)i / (double)num_segments;
-
-        double x = r * cos(theta);
-        double y = r * sin(theta);
-
-        glVertex2d(x + cx, y + cy);
-    }
-
-    glEnd();
-}
-
-void draw_circle(double cx, double cy, double r, int num_segments)
-{
-    glBegin(GL_LINE_LOOP);
-
-    for(int i = 0; i < num_segments; i++)
-    {
-        double theta = 2.0f * 3.1415926f * (double)i / (double)num_segments;
+        double theta = 2.0 * 3.1415926 * (double)i / (double)360;
 
         double x = r * cos(theta);
         double y = r * sin(theta);
@@ -110,14 +104,28 @@ void draw_circle(double cx, double cy, double r, int num_segments)
 void draw_play_again_button(void) {
     glLineWidth(3.0f);
 
-    glBegin(GL_LINE_LOOP);
-    glVertex2d(-play_again_x, 0.2 - play_again_y);
-    glVertex2d(play_again_x, 0.2 - play_again_y);
-    glVertex2d(play_again_x, 0.2 + play_again_y);
-    glVertex2d(-play_again_x, 0.2 + play_again_y);
+    draw_circle(play_again_x, play_again_y, play_again_r, false);
+
+    glBegin(GL_LINE_STRIP);
+    for(int i = 0; i < 270; i++)
+    {
+        double theta = (2.0 * 3.1415926 * (double)i/(double)360) + 3.1415926/4;
+
+        double x = play_again_r/2.0 * cos(theta);
+        double y = play_again_r/2.0 * sin(theta);
+
+        glVertex2d(x + play_again_x, y + play_again_y);
+    }
     glEnd();
 
-    draw_text(-0.26, 0.23, GLUT_BITMAP_HELVETICA_18, "Jogar novamente");
+    double r5 = play_again_r*(5.0/8.0);
+    double r8 = play_again_r/8.0;
+
+    glBegin(GL_TRIANGLES);
+    glVertex2d(play_again_x + r5, play_again_y - r5);
+    glVertex2d(play_again_x + r5, play_again_y - r8);
+    glVertex2d(play_again_x + r8, play_again_y - r8);
+    glEnd();
 }
 
 void draw_play_area(void) {
@@ -136,13 +144,13 @@ void draw_target(void) {
 
     glColor3d(149.0/255.0, 195.0/255.0, 232.0/255.0);
 
-    draw_filled_circle(target_x, target_y, target_r, 50);
+    draw_circle(target_x, target_y, target_r, true);
 
     glColor3d(1.0, 1.0, 1.0);
 
-    draw_circle(target_x, target_y, target_r * 3.0/3.0, 50);
-    draw_circle(target_x, target_y, target_r * 2.0/3.0, 50);
-    draw_circle(target_x, target_y, target_r * 1.0/3.0, 50);
+    draw_circle(target_x, target_y, target_r * 3.0/3.0, false);
+    draw_circle(target_x, target_y, target_r * 2.0/3.0, false);
+    draw_circle(target_x, target_y, target_r * 1.0/3.0, false);
 
     glBegin(GL_LINES);
     glVertex2d(target_x - target_r, target_y);
@@ -168,10 +176,11 @@ void display(GLvoid) {
         char* instructions_buffer = (char*)malloc(256 * sizeof(char));
         snprintf(instructions_buffer, 256, "Para jogar, acerte %d alvos rapidamente.", TARGET_COUNT);
 
-        draw_text(-0.15, -0.4, GLUT_BITMAP_HELVETICA_18, "Aim Trainer");
-        draw_text(-0.45, 0.4, GLUT_BITMAP_HELVETICA_18, instructions_buffer);
-        draw_text(-0.4, 0.5, GLUT_BITMAP_HELVETICA_18, "Clique no alvo acima para iniciar.");
-        draw_text(-0.395, 0.7, GLUT_BITMAP_HELVETICA_18, "Aperte ESC para sair do jogo.");
+        draw_text(-0.2, -0.6, GLUT_BITMAP_HELVETICA_18, "Aim Trainer");
+        draw_text(-0.65, -0.4, GLUT_BITMAP_HELVETICA_18, instructions_buffer);
+        draw_text(-0.61, -0.3, GLUT_BITMAP_HELVETICA_18, "Clique no alvo acima para iniciar.");
+        draw_text(-0.4, 0.5, GLUT_BITMAP_HELVETICA_18, "Aperte [ESC] para sair do jogo.");
+        draw_text(-0.41, 0.6, GLUT_BITMAP_HELVETICA_18, "Aperte [R] para reiniciar o jogo.");
 
         draw_text(-play_area_x + 0.1, 0.4, GLUT_BITMAP_HELVETICA_18, "Mudar dificuldade:");
         draw_text(-play_area_x + 0.1, 0.5, GLUT_BITMAP_HELVETICA_18, "Facil (tecla [F])");
@@ -179,7 +188,7 @@ void display(GLvoid) {
         draw_text(-play_area_x + 0.1, 0.7, GLUT_BITMAP_HELVETICA_18, "Dificil (tecla [D])");
         draw_text(-play_area_x + 0.1, 0.8, GLUT_BITMAP_HELVETICA_18, "Viciado (tecla [V])");
 
-        draw_text(-play_area_x + 0.1, 0.9, GLUT_BITMAP_HELVETICA_18, "Use a roda do mouse para ajustes finos.");
+        draw_text(-play_area_x + 0.1, 0.9, GLUT_BITMAP_HELVETICA_18, "Use a roda do mouse para ajustar a area de jogo.");
     } else if (game_state == PLAYING_STATE) {
         char* remaining_message_buffer = (char*)malloc(256 * sizeof(char));
         snprintf(remaining_message_buffer, 256, "Faltam %d alvos", remaining_targets);
@@ -196,7 +205,7 @@ void display(GLvoid) {
         snprintf(average_ms_buffer, 256, "%d ms", average_ms);
 
         draw_text(-0.5, -0.25, GLUT_BITMAP_HELVETICA_18, "Tempo de reacao medio por alvo");
-        draw_text(-0.1, -0.05, GLUT_BITMAP_TIMES_ROMAN_24, average_ms_buffer);
+        draw_text(-0.15, -0.05, GLUT_BITMAP_TIMES_ROMAN_24, average_ms_buffer);
 
         draw_play_again_button();
     }
@@ -223,11 +232,7 @@ void mouse_passive_motion(int x, int y)
     double mouse_x = get_mouse_x(x);
     double mouse_y = get_mouse_y(y);
 
-    if ((game_state == RESULTS_STATE
-        && mouse_x <= play_again_x
-        && mouse_x >= -play_again_x
-        && mouse_y <= 0.2 + play_again_y
-        && mouse_y >= 0.2 - play_again_y)
+    if ((game_state == RESULTS_STATE && is_inside_play_again_button(mouse_x, mouse_y))
         || (display_target && is_inside_target(mouse_x, mouse_y))){
         glutSetCursor(GLUT_CURSOR_INFO);
     } else {
@@ -237,19 +242,19 @@ void mouse_passive_motion(int x, int y)
 
 void reshape(int new_width, int new_height)
 {
-    if (new_height <= init_play_area_height)
-        new_height = init_play_area_height;
+    if (new_height <= play_area_height)
+        new_height = play_area_height;
 
-    if (new_width <= init_play_area_width)
-        new_width = init_play_area_width;
+    if (new_width <= play_area_width)
+        new_width = play_area_width;
 
     glutReshapeWindow(new_width, new_height);
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
-    double init_scale_x = (double)init_width / (double)init_play_area_width;
-    double init_scale_y = (double)init_height / (double)init_play_area_height;
+    double init_scale_x = (double)init_width / (double)play_area_width;
+    double init_scale_y = (double)init_height / (double)play_area_height;
 
     scale_x = init_scale_x * (double)new_width/init_height;
     scale_y = init_scale_y * (double)new_height/init_height;
@@ -274,6 +279,15 @@ void keyboard(unsigned char key, int x, int y)
         case '+':
             if (game_state == START_STATE)
                 increase_target_r();
+            break;
+        case 'R':
+        case 'r':
+            game_state = START_STATE;
+            target_x = 0.0;
+            target_y = 0.0;
+            display_target = true;
+            remaining_targets = TARGET_COUNT;
+            glutSetCursor(GLUT_CURSOR_INHERIT);
             break;
         case 'F':
         case 'f':
@@ -311,14 +325,11 @@ void init(void) {
 
     game_state = START_STATE;
 
-    double init_play_scale_x = (double)init_play_area_width / (double)init_play_area_height;
-    double init_play_scale_y = 1.0;
+    double init_scale_x = (double)init_width / (double)play_area_width;
+    double init_scale_y = (double)init_height / (double)play_area_height;
 
-    double init_scale_x = (double)init_width / (double)init_play_area_width;
-    double init_scale_y = (double)init_height / (double)init_play_area_height;
-
-    double ortho_x = init_scale_x * init_play_scale_x;
-    double ortho_y = init_scale_y * init_play_scale_y;
+    double ortho_x = init_scale_x * 1.5;
+    double ortho_y = init_scale_y * 1.0;
 
     gluOrtho2D(-ortho_x, ortho_x, ortho_y, -ortho_y);
 
@@ -344,8 +355,31 @@ void mouse(int button, int state, int x, int y)
     {
         if (state == GLUT_UP) return;
 
-        if (button == 3) increase_target_r();
-        else decrease_target_r();
+        int height = glutGet(GLUT_WINDOW_HEIGHT);
+        int width = glutGet(GLUT_WINDOW_WIDTH);
+
+        int new_play_area_height = button == 3 ? play_area_height + 10 : play_area_height - 10;
+        int new_play_area_width = button == 3 ? play_area_width + 15 : play_area_width - 15;
+
+        if (new_play_area_width >= min_play_area_width && new_play_area_width <= width
+            && new_play_area_height >= min_play_area_height && new_play_area_height <= height) {
+            play_area_width = new_play_area_width;
+            play_area_height = new_play_area_height;
+        }
+
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+
+        double init_scale_x = (double)init_width / (double)play_area_width;
+        double init_scale_y = (double)init_height / (double)play_area_height;
+
+        scale_x = init_scale_x * (double)width/init_height;
+        scale_y = init_scale_y * (double)height/init_height;
+
+        gluOrtho2D(-scale_x, scale_x, scale_y, -scale_y);
+
+        glutPostRedisplay();
+        return;
     }
 
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
@@ -376,10 +410,7 @@ void mouse(int button, int state, int x, int y)
                 return;
             }
         } else if (game_state == RESULTS_STATE) {
-            if (mouse_x <= play_again_x
-                && mouse_x >= -play_again_x
-                && mouse_y <= 0.2 + play_again_y
-                && mouse_y >= 0.2 - play_again_y) {
+            if (is_inside_play_again_button(mouse_x, mouse_y)) {
                 game_state = START_STATE;
                 target_x = 0.0;
                 target_y = 0.0;
