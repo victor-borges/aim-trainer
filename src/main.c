@@ -328,13 +328,10 @@ void init(void) {
 
     game_state = START_STATE;
 
-    double init_scale_x = (double)init_width / (double)play_area_width;
-    double init_scale_y = (double)init_height / (double)play_area_height;
+    scale_x = play_area_x * (double)init_width / (double)play_area_width;
+    scale_y = play_area_y * (double)init_height / (double)play_area_height;
 
-    double ortho_x = init_scale_x * 1.5;
-    double ortho_y = init_scale_y * 1.0;
-
-    gluOrtho2D(-ortho_x, ortho_x, ortho_y, -ortho_y);
+    gluOrtho2D(-scale_x, scale_x, scale_y, -scale_y);
 
 #if defined(_WIN32)
     srand(time(NULL) + _getpid());
@@ -373,11 +370,8 @@ void mouse(int button, int state, int x, int y)
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
 
-        double init_scale_x = (double)init_width / (double)play_area_width;
-        double init_scale_y = (double)init_height / (double)play_area_height;
-
-        scale_x = init_scale_x * (double)width/init_height;
-        scale_y = init_scale_y * (double)height/init_height;
+        scale_x = play_area_x * (double)width/(double)play_area_width;
+        scale_y = play_area_y * (double)height/(double)play_area_height;
 
         gluOrtho2D(-scale_x, scale_x, scale_y, -scale_y);
 
