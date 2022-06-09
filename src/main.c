@@ -186,7 +186,6 @@ void display(GLvoid) {
         draw_text(-play_area_x + 0.1, 0.5, GLUT_BITMAP_HELVETICA_18, "Facil (tecla [F])");
         draw_text(-play_area_x + 0.1, 0.6, GLUT_BITMAP_HELVETICA_18, "Normal (tecla [N])");
         draw_text(-play_area_x + 0.1, 0.7, GLUT_BITMAP_HELVETICA_18, "Dificil (tecla [D])");
-        draw_text(-play_area_x + 0.1, 0.8, GLUT_BITMAP_HELVETICA_18, "Viciado (tecla [V])");
 
         draw_text(-play_area_x + 0.1, 0.9, GLUT_BITMAP_HELVETICA_18, "Use a roda do mouse para ajustar a area de jogo.");
     } else if (game_state == PLAYING_STATE) {
@@ -196,10 +195,19 @@ void display(GLvoid) {
         draw_text(-0.1, - play_area_y + 0.1, GLUT_BITMAP_HELVETICA_18, remaining_message_buffer);
     } else if (game_state == RESULTS_STATE) {
         int total_time_ms = 0;
-        for (int i = 0; i < TARGET_COUNT; ++i)
-            total_time_ms += (int)((float)target_times[i])/(CLOCKS_PER_SEC/1000);
+        int min_time_ms = target_times[0];
+        int max_time_ms = target_times[0];
+        for (int i = 0; i < TARGET_COUNT; ++i) {
+            if (target_times[i] > max_time_ms)
+                max_time_ms = target_times[i];
 
-        int average_ms = total_time_ms / TARGET_COUNT;
+            if (target_times[i] < min_time_ms)
+                min_time_ms = target_times[i];
+
+            total_time_ms += (int) ((float) target_times[i]) / (CLOCKS_PER_SEC / 1000);
+        }
+        total_time_ms -= max_time_ms + min_time_ms;
+        int average_ms = total_time_ms / (TARGET_COUNT - 2);
 
         char* average_ms_buffer = (char*)malloc(256 * sizeof(char));
         snprintf(average_ms_buffer, 256, "%d ms", average_ms);
@@ -303,11 +311,6 @@ void keyboard(unsigned char key, int x, int y)
         case 'd':
             if (game_state == START_STATE)
                 target_r = 0.12;
-            break;
-        case 'V':
-        case 'v':
-            if (game_state == START_STATE)
-                target_r = 0.08;
             break;
         default:
             break;
